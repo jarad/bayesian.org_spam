@@ -1,6 +1,7 @@
 library(rvest)
 library(plyr)
 library(ggplot2)
+library(reshape2)
 
 
 base = 'http://bayesian.org/forums'
@@ -17,7 +18,7 @@ write.csv(exists[,c("forum","i")], file="posts.csv", row.names=FALSE)
 
 # Extract posted-on date from URLs that exist
 dates = ddply(exists, .(forum,i), function(x) {
-  posted_on = html(paste(base,x$forum, x$i, sep='/')) %>% 
+  posted_on = read_html(paste(base,x$forum, x$i, sep='/')) %>% 
     html_node('.posted-on') %>%
     html_text(trim=TRUE) 
   data.frame(posted_on = posted_on, stringsAsFactors=FALSE)
@@ -33,6 +34,7 @@ dates$spam = c(0, diff(dates$i))
 
 # Aggregate by week, count real posts and spam posts
 dates$week = cut(dates$date, 'week')
-sm = ddply(dates, .(week), summarize, true_posts = length(i), spam_posts = sum(spam))
+sm = ddply(dates, .(week), summarize, true = length(i), spam = sum(spam))
 
-ggplot(sm, aes(as.Date(week), spam_posts)) + geom_point() + scale_y_log10() + scale_x_date()
+ggplot(melt(sm, id.var='week', variable.name='type', value.name='count'), 
+       aes(as.Date(week), count, shape=type, col=type)) + geom_point() + scale_y_log10() + scale_x_date()
